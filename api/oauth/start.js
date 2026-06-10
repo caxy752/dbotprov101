@@ -22,8 +22,8 @@ export default async function handler(req, res) {
         const query = req.query || {};
 
         // Use client_id passed as query or fallback to env var
-        const client_id = query.client_id || process.env.DERIV_OAUTH_CLIENT_ID || process.env.DERIV_LEGACY_APP_ID;
-        const redirect_uri = query.redirect_uri || process.env.DERIV_REDIRECT_URI;
+        const client_id = query.client_id || process.env.CLIENT_ID || process.env.DERIV_OAUTH_CLIENT_ID || process.env.OAUTH_CLIENT_ID || process.env.DERIV_LEGACY_APP_ID || process.env.APP_ID;
+        const redirect_uri = query.redirect_uri || process.env.OAUTH_REDIRECT_URI || process.env.DERIV_REDIRECT_URI || process.env.REDIRECT_URI;
 
         if (!client_id || !redirect_uri) {
             return res.status(500).json({ error: 'Missing server configuration for client_id or redirect_uri' });

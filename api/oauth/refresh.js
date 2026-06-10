@@ -40,7 +40,7 @@ export default async function handler(req, res) {
             });
         }
 
-        const client_id = process.env.DERIV_OAUTH_CLIENT_ID || process.env.DERIV_APP_ID;
+        const client_id = process.env.CLIENT_ID || process.env.DERIV_OAUTH_CLIENT_ID || process.env.OAUTH_CLIENT_ID || process.env.DERIV_LEGACY_APP_ID || process.env.APP_ID;
         const client_secret = process.env.DERIV_CLIENT_SECRET || '';
 
         if (!client_id) {

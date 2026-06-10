@@ -80,7 +80,7 @@ export default async function handler(req, res) {
                 `deriv_token_expires=${Date.now() + Number(tokenData.expires_in) * 1000}; ${cookieOpts.join('; ')}`
             );
 
-        const app_id = process.env.DERIV_LEGACY_APP_ID;
+        const app_id = process.env.APP_ID || process.env.DERIV_LEGACY_APP_ID || process.env.LEGACY_APP_ID;
         if (app_id) {
             setCookies.push(`deriv_app_id=${encodeURIComponent(app_id)}; ${cookieOpts.join('; ')}`);
         }
