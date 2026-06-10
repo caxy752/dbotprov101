@@ -66,6 +66,12 @@ export default defineConfig({
                 VITE_OAUTH_TOKEN_URL: JSON.stringify(process.env.VITE_OAUTH_TOKEN_URL || 'https://auth.deriv.com/oauth2/token'),
                 REACT_APP_OAUTH_SCOPES: JSON.stringify(process.env.REACT_APP_OAUTH_SCOPES || 'trade,account_manage'),
                 VITE_OAUTH_SCOPES: JSON.stringify(process.env.VITE_OAUTH_SCOPES || 'trade,account_manage'),
+                SCOPE: JSON.stringify(process.env.SCOPE),
+                OAUTH_SCOPE: JSON.stringify(process.env.OAUTH_SCOPE),
+                REACT_APP_SCOPE: JSON.stringify(process.env.REACT_APP_SCOPE),
+                REACT_APP_OAUTH_SCOPE: JSON.stringify(process.env.REACT_APP_OAUTH_SCOPE),
+                VITE_SCOPE: JSON.stringify(process.env.VITE_SCOPE),
+                VITE_OAUTH_SCOPE: JSON.stringify(process.env.VITE_OAUTH_SCOPE),
             },
         },
         alias: {
