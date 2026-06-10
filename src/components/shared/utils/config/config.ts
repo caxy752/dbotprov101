@@ -453,5 +453,11 @@ export const generateOAuthURL = async (prompt?: string) => {
         original_url.searchParams.set('prompt', prompt);
     }
 
-    return original_url.toString();
+    const finalUrl = original_url.toString();
+    console.log('[OAuth Debug] Generated OAuth URL:', finalUrl);
+    console.log('[OAuth Debug] Configured client ID:', configured_client_id);
+    console.log('[OAuth Debug] Configured app ID:', configured_app_id);
+    console.log('[OAuth Debug] Redirect URI:', getAuthRedirectUri());
+
+    return finalUrl;
 };
