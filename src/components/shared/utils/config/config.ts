@@ -411,14 +411,6 @@ export const generateOAuthURL = async (prompt?: string) => {
         sessionStorage.getItem('query_param_currency') ||
         '';
 
-    console.log('[OAuth Debug] Full process.env:', process.env);
-    console.log('[OAuth Debug] getConfiguredClientId():', configured_client_id);
-    console.log('[OAuth Debug] getConfiguredAppId():', configured_app_id);
-    console.log('[OAuth Debug] getOAuthBaseUrl():', getOAuthBaseUrl());
-    console.log('[OAuth Debug] getOAuthAuthorizationPath():', getOAuthAuthorizationPath());
-    console.log('[OAuth Debug] getOAuthScope():', getOAuthScope());
-    console.log('[OAuth Debug] getAuthRedirectUri():', getAuthRedirectUri());
-
     if (!configured_client_id && !configured_app_id) {
         throw new Error('CLIENT_ID or APP_ID is required for OAuth login');
     }
@@ -462,10 +454,17 @@ export const generateOAuthURL = async (prompt?: string) => {
     }
 
     const finalUrl = original_url.toString();
-    console.log('[OAuth Debug] Generated OAuth URL:', finalUrl);
-    console.log('[OAuth Debug] Configured client ID:', configured_client_id);
-    console.log('[OAuth Debug] Configured app ID:', configured_app_id);
-    console.log('[OAuth Debug] Redirect URI:', getAuthRedirectUri());
+    
+    // Exact debug info as requested
+    console.log('OAuth Client ID:', configured_client_id);
+    console.log('App ID:', configured_app_id);
+    console.log('OAuth URL:', finalUrl);
+    console.log({
+      appId: configured_app_id,
+      clientId: configured_client_id,
+      redirectUri: getAuthRedirectUri(),
+      authUrl: finalUrl
+    });
 
     return finalUrl;
 };
