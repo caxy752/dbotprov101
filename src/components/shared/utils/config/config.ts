@@ -411,6 +411,14 @@ export const generateOAuthURL = async (prompt?: string) => {
         sessionStorage.getItem('query_param_currency') ||
         '';
 
+    console.log('[OAuth Debug] Full process.env:', process.env);
+    console.log('[OAuth Debug] getConfiguredClientId():', configured_client_id);
+    console.log('[OAuth Debug] getConfiguredAppId():', configured_app_id);
+    console.log('[OAuth Debug] getOAuthBaseUrl():', getOAuthBaseUrl());
+    console.log('[OAuth Debug] getOAuthAuthorizationPath():', getOAuthAuthorizationPath());
+    console.log('[OAuth Debug] getOAuthScope():', getOAuthScope());
+    console.log('[OAuth Debug] getAuthRedirectUri():', getAuthRedirectUri());
+
     if (!configured_client_id && !configured_app_id) {
         throw new Error('CLIENT_ID or APP_ID is required for OAuth login');
     }
