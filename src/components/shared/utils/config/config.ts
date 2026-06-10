@@ -121,7 +121,7 @@ export const getOAuthScope = () =>
     process.env.VITE_SCOPE ||
     process.env.VITE_OAUTH_SCOPE ||
     brandConfig.oauth?.scope ||
-    'trade+account_manage';
+    '';
 
 const OAUTH_STATE_KEY = 'oauth_csrf_token';
 const OAUTH_STATE_TIMESTAMP_KEY = 'oauth_csrf_token_timestamp';
@@ -434,7 +434,13 @@ export const generateOAuthURL = async (prompt?: string) => {
         original_url.searchParams.set('client_id', configured_client_id);
     }
     original_url.searchParams.set('redirect_uri', getAuthRedirectUri());
-    original_url.searchParams.set('scope', getOAuthScope());
+    
+    // Add scope only if present
+    const scope = getOAuthScope();
+    if (scope) {
+        original_url.searchParams.set('scope', scope);
+    }
+    
     original_url.searchParams.set('state', state);
     original_url.searchParams.set('code_challenge_method', 'S256');
     original_url.searchParams.set('code_challenge', code_challenge);

@@ -56,11 +56,16 @@ export default async function handler(req, res) {
             response_type: 'code',
             client_id,
             redirect_uri,
-            scope: 'trade',
             state,
             code_challenge,
             code_challenge_method: 'S256',
         });
+        
+        // Add scope only if provided in env or query
+        const scope = query.scope || process.env.SCOPE || process.env.OAUTH_SCOPE;
+        if (scope) {
+            params.set('scope', scope);
+        }
 
         Object.entries(query).forEach(([key, value]) => {
             if (!['client_id', 'redirect_uri', 'account', 'preferred_account'].includes(key) && value) {
