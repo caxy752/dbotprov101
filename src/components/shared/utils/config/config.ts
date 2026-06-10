@@ -90,7 +90,7 @@ export const getConfiguredClientId = () =>
     brandConfig.oauth?.client_id ||
     '';
 
-const getOAuthBaseUrl = () =>
+export const getOAuthBaseUrl = () =>
     process.env.AUTH_BASE_URL ||
     process.env.OAUTH_BASE_URL ||
     process.env.DERIV_OAUTH_BASE_URL ||
@@ -103,7 +103,7 @@ const getOAuthBaseUrl = () =>
     brandConfig.oauth?.server_base_url ||
     'https://auth.deriv.com';
 
-const getOAuthAuthorizationPath = () =>
+export const getOAuthAuthorizationPath = () =>
     process.env.AUTHORIZATION_PATH ||
     process.env.OAUTH_AUTHORIZATION_PATH ||
     process.env.REACT_APP_AUTHORIZATION_PATH ||
@@ -113,7 +113,7 @@ const getOAuthAuthorizationPath = () =>
     brandConfig.oauth?.authorization_path ||
     '/oauth2/auth';
 
-const getOAuthScope = () =>
+export const getOAuthScope = () =>
     process.env.SCOPE ||
     process.env.OAUTH_SCOPE ||
     process.env.REACT_APP_SCOPE ||

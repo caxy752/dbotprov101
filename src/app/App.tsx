@@ -8,7 +8,7 @@ import ChunkLoader from '@/components/loader/chunk-loader';
 import RoutePromptDialog from '@/components/route-prompt-dialog';
 import { getBotsManifest, prefetchAllXmlInBackground } from '@/utils/freebots-cache';
 import { crypto_currencies_display_order, fiat_currencies_display_order } from '@/components/shared';
-import { forceUpdateAppId, getConfiguredClientId, getConfiguredAppId, getAuthRedirectUri } from '@/components/shared/utils/config/config';
+import { forceUpdateAppId, getConfiguredClientId, getConfiguredAppId, getAuthRedirectUri, getOAuthBaseUrl, getOAuthAuthorizationPath, getOAuthScope } from '@/components/shared/utils/config/config';
 import { observer as globalObserver } from '@/external/bot-skeleton/utils/observer';
 import { OAuthTokenExchangeService } from '@/services/oauth-token-exchange.service';
 import { LegacyAccount, useOAuthCallback } from '@/hooks/auth/useOAuthCallback';
