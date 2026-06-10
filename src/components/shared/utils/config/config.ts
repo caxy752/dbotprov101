@@ -57,6 +57,7 @@ export const getConfiguredAppId = () => {
         process.env.APP_ID ||
         process.env.OAUTH_LEGACY_APP_ID ||
         process.env.LEGACY_APP_ID ||
+        process.env.DERIV_LEGACY_APP_ID ||
         process.env.REACT_APP_APP_ID ||
         process.env.REACT_APP_LEGACY_APP_ID ||
         process.env.VITE_APP_ID ||
@@ -87,14 +88,17 @@ export const getConfiguredClientId = () =>
     process.env.VITE_OAUTH_CLIENT_ID ||
     localStorage.getItem('configured_client_id') ||
     brandConfig.oauth?.client_id ||
-    ''; 
+    '';
 
 const getOAuthBaseUrl = () =>
     process.env.AUTH_BASE_URL ||
     process.env.OAUTH_BASE_URL ||
+    process.env.DERIV_OAUTH_BASE_URL ||
     process.env.REACT_APP_AUTH_BASE_URL ||
+    process.env.REACT_APP_OAUTH_AUTHORIZATION_URL?.replace('/oauth2/auth', '') ||
     process.env.REACT_APP_OAUTH_BASE_URL ||
     process.env.VITE_AUTH_BASE_URL ||
+    process.env.VITE_OAUTH_AUTHORIZATION_URL?.replace('/oauth2/auth', '') ||
     process.env.VITE_OAUTH_BASE_URL ||
     brandConfig.oauth?.server_base_url ||
     'https://auth.deriv.com';

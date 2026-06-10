@@ -187,15 +187,31 @@ function App() {
 
         // Diagnostic: log resolved OAuth config to help debug missing env vars
         try {
+            console.log('[OAuth Debug] process.env:', {
+                CLIENT_ID: process.env.CLIENT_ID,
+                DERIV_OAUTH_CLIENT_ID: process.env.DERIV_OAUTH_CLIENT_ID,
+                OAUTH_CLIENT_ID: process.env.OAUTH_CLIENT_ID,
+                APP_ID: process.env.APP_ID,
+                DERIV_LEGACY_APP_ID: process.env.DERIV_LEGACY_APP_ID,
+                LEGACY_APP_ID: process.env.LEGACY_APP_ID,
+                OAUTH_REDIRECT_URI: process.env.OAUTH_REDIRECT_URI,
+                DERIV_REDIRECT_URI: process.env.DERIV_REDIRECT_URI,
+                REDIRECT_URI: process.env.REDIRECT_URI,
+            });
+            
             const clientId = getConfiguredClientId();
             const appId = getConfiguredAppId();
             const redirectUri = getAuthRedirectUri();
-            const maskedClient = clientId ? `${clientId.slice(0, 4)}...${clientId.slice(-4)}` : 'not-configured';
-            const maskedApp = appId ? String(appId) : 'not-configured';
-            // eslint-disable-next-line no-console
-            console.info(`[OAuth Diagnostic] client_id: ${maskedClient}, app_id: ${maskedApp}, redirect_uri: ${redirectUri}`);
+            const oauthBaseUrl = getOAuthBaseUrl();
+            const oauthAuthPath = getOAuthAuthorizationPath();
+            
+            console.log('[OAuth Debug] getConfiguredClientId():', clientId);
+            console.log('[OAuth Debug] getConfiguredAppId():', appId);
+            console.log('[OAuth Debug] getAuthRedirectUri():', redirectUri);
+            console.log('[OAuth Debug] getOAuthBaseUrl():', oauthBaseUrl);
+            console.log('[OAuth Debug] getOAuthAuthorizationPath():', oauthAuthPath);
         } catch (e) {
-            // ignore diagnostics failures
+            console.error('[OAuth Debug] Error:', e);
         }
 
         // Use the invalid token handler hook to automatically retrigger OIDC authentication
