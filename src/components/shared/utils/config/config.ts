@@ -432,6 +432,13 @@ export const generateOAuthURL = async (prompt?: string) => {
     original_url.searchParams.set('response_type', 'code');
     if (configured_client_id) {
         original_url.searchParams.set('client_id', configured_client_id);
+        // Optional: include legacy app_id for routing users on the Legacy Deriv API platform.
+        if (configured_app_id) {
+            original_url.searchParams.set('app_id', String(configured_app_id));
+        }
+    } else if (configured_app_id) {
+        // Use App ID as client_id when no OAuth Client ID is provided
+        original_url.searchParams.set('client_id', String(configured_app_id));
     }
     original_url.searchParams.set('redirect_uri', getAuthRedirectUri());
     
@@ -447,12 +454,6 @@ export const generateOAuthURL = async (prompt?: string) => {
 
     if (preferred_account) {
         original_url.searchParams.set('account', preferred_account);
-    }
-
-    // Optional: include legacy app_id for routing users on the Legacy Deriv API platform.
-    // This allows client_id-based login to still route through the legacy app id when configured.
-    if (configured_app_id) {
-        original_url.searchParams.set('app_id', String(configured_app_id));
     }
 
     if (prompt) {
