@@ -82,7 +82,7 @@
         "token_url": "https://auth.deriv.com/oauth2/token",
         "redirect_uri": "",
         "client_id": "",
-        "app_id": "117164",
+        "app_id": "113830",
         "scope": "trade+account_manage"
     }
 }
