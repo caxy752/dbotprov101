@@ -54,6 +54,7 @@ export const getCurrentProductionDomain = () => {
 
 export const getConfiguredAppId = () => {
     const configured_app_id =
+        process.env.DERIV_APP_ID ||
         process.env.APP_ID ||
         process.env.OAUTH_LEGACY_APP_ID ||
         process.env.LEGACY_APP_ID ||
@@ -114,6 +115,7 @@ export const getOAuthAuthorizationPath = () =>
     '/oauth2/auth';
 
 export const getOAuthScope = () =>
+    process.env.DERIV_OAUTH_SCOPES ||
     process.env.SCOPE ||
     process.env.OAUTH_SCOPE ||
     process.env.REACT_APP_SCOPE ||
