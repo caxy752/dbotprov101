@@ -81,7 +81,7 @@
         "authorization_path": "/oauth2/auth",
         "token_url": "https://auth.deriv.com/oauth2/token",
         "redirect_uri": "https://dbotprov.vercel.app/api/oauth/callback",
-        "client_id": "33xD5lqNnz16dXdKNver3",
+        "client_id": "33xD5lqNn16dXdKNver3",
         "app_id": "113830",
         "scope": "trade+account_manage"
     }

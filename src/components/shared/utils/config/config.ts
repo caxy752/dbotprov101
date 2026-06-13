@@ -432,10 +432,15 @@ export const generateOAuthURL = async (prompt?: string) => {
     sessionStorage.setItem(OAUTH_CODE_VERIFIER_TIMESTAMP_KEY, timestamp);
 
     original_url.searchParams.set('response_type', 'code');
-    // Always use App ID as client_id for reliability
-    original_url.searchParams.set('client_id', String(configured_app_id));
     if (configured_client_id) {
-        original_url.searchParams.set('app_id', String(configured_app_id));
+        original_url.searchParams.set('client_id', configured_client_id);
+        // Optional: include legacy app_id for routing users on the Legacy Deriv API platform.
+        if (configured_app_id) {
+            original_url.searchParams.set('app_id', String(configured_app_id));
+        }
+    } else if (configured_app_id) {
+        // Use App ID as client_id when no OAuth Client ID is provided
+        original_url.searchParams.set('client_id', String(configured_app_id));
     }
     original_url.searchParams.set('redirect_uri', getAuthRedirectUri());
     
