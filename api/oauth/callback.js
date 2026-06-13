@@ -18,14 +18,23 @@ export default async function handler(req, res) {
     }
 
     try {
+        console.log('OAuth callback request received');
         const { code, state } = req.query || {};
+        console.log('Received code:', code);
+        console.log('Received state:', state);
+
         if (!code || !state) {
             return res.status(400).send('Missing code or state');
         }
 
         const cookies = parseCookies(req.headers.cookie || '');
+        console.log('All cookies received:', cookies);
+
         const storedState = cookies.oauth_state;
         const code_verifier = cookies.oauth_code_verifier;
+
+        console.log('Stored state from cookie:', storedState);
+        console.log('Code verifier from cookie (first 20 chars):', code_verifier ? code_verifier.substring(0, 20) : 'not found');
 
         if (!storedState || !code_verifier) {
             return res.status(400).send('Missing PKCE/session data');
@@ -63,8 +72,13 @@ export default async function handler(req, res) {
         }
 
         const isProd = process.env.NODE_ENV === 'production';
-        const cookieOpts = [`HttpOnly`, `Path=/`, `SameSite=Lax`];
-        if (isProd) cookieOpts.push('Secure');
+        const cookieOpts = [`HttpOnly`, `Path=/`];
+        if (isProd) {
+            cookieOpts.push('SameSite=None');
+            cookieOpts.push('Secure');
+        } else {
+            cookieOpts.push('SameSite=Lax');
+        }
 
         const setCookies = [];
         if (tokenData.access_token)
@@ -85,9 +99,19 @@ export default async function handler(req, res) {
             setCookies.push(`deriv_app_id=${encodeURIComponent(app_id)}; ${cookieOpts.join('; ')}`);
         }
 
-        setCookies.push(`oauth_code_verifier=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
-        setCookies.push(`oauth_state=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
-        setCookies.push(`oauth_preferred_account=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
+        // Clear OAuth cookies with the same SameSite and Secure settings
+        const clearCookieOpts = [`Path=/`, `Max-Age=0`, `HttpOnly`];
+        if (isProd) {
+            clearCookieOpts.push('SameSite=None');
+            clearCookieOpts.push('Secure');
+        } else {
+            clearCookieOpts.push('SameSite=Lax');
+        }
+        const clearCookieOptsStr = clearCookieOpts.join('; ');
+
+        setCookies.push(`oauth_code_verifier=; ${clearCookieOptsStr}`);
+        setCookies.push(`oauth_state=; ${clearCookieOptsStr}`);
+        setCookies.push(`oauth_preferred_account=; ${clearCookieOptsStr}`);
         setCookies.push(`logged_state=true; Path=/; SameSite=Lax; ${isProd ? 'Secure' : ''}`.replace(/; $/, ''));
 
         let selectedAccount = null;

@@ -19,11 +19,15 @@ export default async function handler(req, res) {
     }
 
     try {
+        console.log('OAuth start request received');
         const query = req.query || {};
 
         // Use client_id passed as query or fallback to env var
         const client_id = query.client_id || process.env.CLIENT_ID || process.env.DERIV_OAUTH_CLIENT_ID || process.env.OAUTH_CLIENT_ID || process.env.DERIV_LEGACY_APP_ID || process.env.APP_ID;
         const redirect_uri = query.redirect_uri || process.env.OAUTH_REDIRECT_URI || process.env.DERIV_REDIRECT_URI || process.env.REDIRECT_URI;
+
+        console.log('Client ID:', client_id);
+        console.log('Redirect URI:', redirect_uri);
 
         if (!client_id || !redirect_uri) {
             return res.status(500).json({ error: 'Missing server configuration for client_id or redirect_uri' });
@@ -36,10 +40,19 @@ export default async function handler(req, res) {
         const code_challenge = base64URLEncode(sha256(code_verifier));
         const state = randomString(32);
 
+        console.log('Generated state:', state);
+        console.log('Generated code_verifier (first 20 chars):', code_verifier.substring(0, 20));
+
         // Set HttpOnly cookies to keep code_verifier, state, and preferred account server-side
         const isProd = process.env.NODE_ENV === 'production';
-        const cookieOpts = [`HttpOnly`, `Path=/`, `SameSite=Lax`];
-        if (isProd) cookieOpts.push('Secure');
+        // For cross-site redirects, we need SameSite=None and Secure in production
+        const cookieOpts = [`HttpOnly`, `Path=/`];
+        if (isProd) {
+            cookieOpts.push('SameSite=None');
+            cookieOpts.push('Secure');
+        } else {
+            cookieOpts.push('SameSite=Lax');
+        }
 
         const cookies = [
             `oauth_code_verifier=${encodeURIComponent(code_verifier)}; ${cookieOpts.join('; ')}`,
@@ -50,6 +63,7 @@ export default async function handler(req, res) {
             cookies.push(`oauth_preferred_account=${encodeURIComponent(preferred_account)}; ${cookieOpts.join('; ')}`);
         }
 
+        console.log('Setting cookies:', cookies);
         res.setHeader('Set-Cookie', cookies);
 
         const params = new URLSearchParams({
