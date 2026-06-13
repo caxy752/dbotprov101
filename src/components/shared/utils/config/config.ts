@@ -115,7 +115,7 @@ export const getOAuthAuthorizationPath = () =>
     '/oauth2/auth';
 
 export const getOAuthScope = () =>
-    process.env.DERIV_OAUTH_SCOPES ||
+    (process.env.DERIV_OAUTH_SCOPES ||
     process.env.SCOPE ||
     process.env.OAUTH_SCOPE ||
     process.env.REACT_APP_SCOPE ||
@@ -123,7 +123,7 @@ export const getOAuthScope = () =>
     process.env.VITE_SCOPE ||
     process.env.VITE_OAUTH_SCOPE ||
     brandConfig.oauth?.scope ||
-    '';
+    '').replace(/\+/g, ' ');
 
 const OAUTH_STATE_KEY = 'oauth_csrf_token';
 const OAUTH_STATE_TIMESTAMP_KEY = 'oauth_csrf_token_timestamp';

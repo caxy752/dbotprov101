@@ -62,7 +62,7 @@ export default async function handler(req, res) {
         });
         
         // Add scope only if provided in env or query
-        const scope = query.scope || process.env.SCOPE || process.env.OAUTH_SCOPE;
+        const scope = (query.scope || process.env.DERIV_OAUTH_SCOPES || process.env.SCOPE || process.env.OAUTH_SCOPE || '').replace(/\+/g, ' ');
         if (scope) {
             params.set('scope', scope);
         }

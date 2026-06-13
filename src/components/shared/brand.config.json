@@ -83,6 +83,6 @@
         "redirect_uri": "https://dbotprov.vercel.app/api/oauth/callback",
         "client_id": "33xD5lqNn16dXdKNver3",
         "app_id": "113830",
-        "scope": "trade+account_manage"
+        "scope": "trade account_manage"
     }
 }
