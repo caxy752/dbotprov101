@@ -37,7 +37,14 @@ export default async function handler(req, res) {
         console.log('Code verifier from cookie (first 20 chars):', code_verifier ? code_verifier.substring(0, 20) : 'not found');
 
         if (!storedState || !code_verifier) {
-            return res.status(400).send('Missing PKCE/session data');
+            console.log('Missing PKCE/session data in cookies (flow initiated client-side). Redirecting to frontend.');
+            const redirectUrl = new URL('/', `https://${req.headers.host}`);
+            if (code) redirectUrl.searchParams.set('code', code);
+            if (state) redirectUrl.searchParams.set('state', state);
+            if (req.query.scope) redirectUrl.searchParams.set('scope', req.query.scope);
+            if (req.query.error) redirectUrl.searchParams.set('error', req.query.error);
+            if (req.query.error_description) redirectUrl.searchParams.set('error_description', req.query.error_description);
+            return res.writeHead(302, { Location: redirectUrl.toString() }).end();
         }
 
         if (storedState !== state) {
