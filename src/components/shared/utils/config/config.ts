@@ -133,52 +133,62 @@ const OAUTH_CODE_VERIFIER_KEY = 'oauth_code_verifier';
 const OAUTH_CODE_VERIFIER_TIMESTAMP_KEY = 'oauth_code_verifier_timestamp';
 const OAUTH_TOKEN_EXPIRY_MS = 600000;
 
-const getCrypto = () => globalThis.crypto || window.crypto;
+/**
+ * Generates a cryptographically secure CSRF token
+ * @returns A random base64url-encoded string
+ */
+const generateCSRFToken = (): string => {
+    // Generate 32 random bytes (256 bits) for strong security
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
 
-const createRandomString = (length = 64) => {
-    const random_bytes = new Uint8Array(length);
-    getCrypto().getRandomValues(random_bytes);
-
-    return Array.from(random_bytes, byte => byte.toString(16).padStart(2, '0'))
-        .join('')
-        .slice(0, length);
+    // Convert to base64url encoding (URL-safe)
+    const base64 = btoa(String.fromCharCode(...array));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
 
-const encodeUtf8 = (value: string) => {
-    if (typeof TextEncoder !== 'undefined') {
-        return new TextEncoder().encode(value);
-    }
+/**
+ * Generates a PKCE code verifier (random string)
+ * @returns A cryptographically random base64url-encoded string (43-128 characters)
+ */
+const generateCodeVerifier = (): string => {
+    // Generate 32 random bytes (will result in 43 characters after base64url encoding)
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
 
-    const encoded = unescape(encodeURIComponent(value));
-    const bytes = new Uint8Array(encoded.length);
-
-    for (let index = 0; index < encoded.length; index += 1) {
-        bytes[index] = encoded.charCodeAt(index);
-    }
-
-    return bytes;
+    // Convert to base64url encoding (URL-safe, no padding)
+    const base64 = btoa(String.fromCharCode(...array));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
 
-const createCodeChallenge = async (code_verifier: string) => {
-    const data = encodeUtf8(code_verifier);
-    const crypto_api = getCrypto();
+/**
+ * Generates a PKCE code challenge from a code verifier using SHA-256
+ * @param verifier The code verifier string
+ * @returns Promise that resolves to the base64url-encoded SHA-256 hash
+ */
+const generateCodeChallenge = async (verifier: string): Promise<string> => {
+    // Encode the verifier as UTF-8
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
 
-    if (typeof crypto_api?.subtle?.digest !== 'function') {
-        throw new Error('Unable to create an OAuth code challenge');
-    }
+    // Hash with SHA-256
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 
-    const digest = await crypto_api.subtle.digest('SHA-256', data);
-    const bytes = new Uint8Array(digest);
-    let binary = '';
-
-    bytes.forEach(byte => {
-        binary += String.fromCharCode(byte);
-    });
-
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    // Convert to base64url encoding
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const base64 = btoa(String.fromCharCode(...hashArray));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 };
 
-export const getOAuthState = () => sessionStorage.getItem(OAUTH_STATE_KEY);
+/**
+ * Stores PKCE code verifier in sessionStorage for token exchange
+ * @param verifier The code verifier to store
+ */
+const storeCodeVerifier = (verifier: string): void => {
+    sessionStorage.setItem(OAUTH_CODE_VERIFIER_KEY, verifier);
+    // Also store timestamp for verifier expiration (e.g., 10 minutes)
+    sessionStorage.setItem(OAUTH_CODE_VERIFIER_TIMESTAMP_KEY, Date.now().toString());
+};
 
 export const getCodeVerifier = () => {
     const code_verifier = sessionStorage.getItem(OAUTH_CODE_VERIFIER_KEY);
@@ -213,6 +223,16 @@ export const clearOAuthSession = () => {
     clearCodeVerifier();
 };
 
+/**
+ * Stores CSRF token in sessionStorage for validation after OAuth callback
+ * @param token The CSRF token to store
+ */
+const storeCSRFToken = (token: string): void => {
+    sessionStorage.setItem(OAUTH_STATE_KEY, token);
+    // Also store timestamp for token expiration (e.g., 10 minutes)
+    sessionStorage.setItem(OAUTH_STATE_TIMESTAMP_KEY, Date.now().toString());
+};
+
 export const validateCSRFToken = (token: string): boolean => {
     const stored_token = sessionStorage.getItem(OAUTH_STATE_KEY);
     const timestamp = sessionStorage.getItem(OAUTH_STATE_TIMESTAMP_KEY);
@@ -245,30 +265,21 @@ export const clearCSRFToken = () => {
 };
 
 export const getAuthRedirectUri = () => {
-    const configuredRedirectUri =
+    // Check environment variables first
+    const envRedirectUri = 
         process.env.DERIV_REDIRECT_URI ||
-        process.env.DERIV_OAUTH_REDIRECT_URI ||
-        process.env.REDIRECT_URI ||
         process.env.OAUTH_REDIRECT_URI ||
-        process.env.REACT_APP_REDIRECT_URI ||
-        process.env.REACT_APP_OAUTH_REDIRECT_URI ||
-        process.env.VITE_REDIRECT_URI ||
-        process.env.VITE_OAUTH_REDIRECT_URI ||
-        (brandConfig.oauth?.redirect_uri ? String(brandConfig.oauth.redirect_uri) : '');
-
-    if (configuredRedirectUri) {
-        return configuredRedirectUri;
+        process.env.REDIRECT_URI ||
+        brandConfig.oauth?.redirect_uri;
+    
+    if (envRedirectUri) {
+        return envRedirectUri;
     }
-
+    
+    // Fall back to current origin
     const protocol = window.location.protocol;
     const host = window.location.host;
-    const isProd = isProduction();
-
-    if (isProd) {
-        return `https://${brandConfig.brand_domain}/auth/callback`;
-    }
-
-    return `${protocol}//${host}/auth/callback`;
+    return `${protocol}//${host}`;
 };
 
 export const isProduction = () => {
@@ -408,74 +419,62 @@ export const getDebugServiceWorker = () => {
 };
 
 export const generateOAuthURL = async (prompt?: string) => {
-    const configured_client_id = getConfiguredClientId();
-    const configured_app_id = getConfiguredAppId();
-    const preferred_account =
-        new URLSearchParams(window.location.search).get('account') ||
-        sessionStorage.getItem('query_param_currency') ||
-        '';
+    try {
+        const environment = isProduction() ? 'production' : 'staging';
+        const hostname = brandConfig?.platform?.auth2_url?.[environment] || 'https://auth.deriv.com/';
+        const clientId = getConfiguredClientId() || String(getConfiguredAppId());
 
-    if (!configured_client_id && !configured_app_id) {
-        throw new Error('CLIENT_ID or APP_ID is required for OAuth login');
-    }
+        if (hostname && clientId) {
+            // Generate CSRF token for security
+            const csrfToken = generateCSRFToken();
 
-    const oauthBaseUrl = getOAuthBaseUrl().replace(/\/$/, '');
-    const oauthAuthPath = getOAuthAuthorizationPath();
-    const original_url = new URL(`${oauthBaseUrl}${oauthAuthPath}`);
+            // Store token for validation after callback
+            storeCSRFToken(csrfToken);
 
-    const state = createRandomString();
-    const code_verifier = createRandomString();
-    const code_challenge = await createCodeChallenge(code_verifier);
-    const timestamp = Date.now().toString();
+            // Generate PKCE parameters
+            const codeVerifier = generateCodeVerifier();
+            const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-    sessionStorage.setItem(OAUTH_STATE_KEY, state);
-    sessionStorage.setItem(OAUTH_STATE_TIMESTAMP_KEY, timestamp);
-    sessionStorage.setItem(OAUTH_CODE_VERIFIER_KEY, code_verifier);
-    sessionStorage.setItem(OAUTH_CODE_VERIFIER_TIMESTAMP_KEY, timestamp);
+            // Store code verifier for token exchange
+            storeCodeVerifier(codeVerifier);
 
-    original_url.searchParams.set('response_type', 'code');
-    if (configured_client_id) {
-        original_url.searchParams.set('client_id', configured_client_id);
-        // Optional: include legacy app_id for routing users on the Legacy Deriv API platform.
-        if (configured_app_id) {
-            original_url.searchParams.set('app_id', String(configured_app_id));
+            // Build redirect URL
+            const redirectUrl = getAuthRedirectUri();
+            const scopes = 'trade';
+
+            // Build OAuth URL with PKCE parameters
+            // - state: CSRF token for security
+            // - code_challenge: SHA-256 hash of code_verifier
+            // - code_challenge_method: S256 (SHA-256)
+            let oauthUrl = `${hostname}oauth2/auth?scope=${scopes}&response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&state=${csrfToken}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
+            // Optional: prompt parameter (e.g. 'registration' for signup flow)
+            if (prompt) {
+                oauthUrl += `&prompt=${encodeURIComponent(prompt)}`;
+            }
+
+            // Optional: legacy app_id for routing users on the Legacy Deriv API platform
+            const appId = getConfiguredAppId();
+            if (appId) {
+                oauthUrl += `&app_id=${encodeURIComponent(String(appId))}`;
+            }
+
+            console.log('OAuth Client ID:', clientId);
+            console.log('App ID:', appId);
+            console.log('OAuth URL:', oauthUrl);
+            console.log({
+              appId: appId,
+              clientId: clientId,
+              redirectUri: redirectUrl,
+              authUrl: oauthUrl
+            });
+
+            return oauthUrl;
         }
-    } else if (configured_app_id) {
-        // Use App ID as client_id when no OAuth Client ID is provided
-        original_url.searchParams.set('client_id', String(configured_app_id));
-    }
-    original_url.searchParams.set('redirect_uri', getAuthRedirectUri());
-    
-    // Add scope only if present
-    const scope = getOAuthScope();
-    if (scope) {
-        original_url.searchParams.set('scope', scope);
-    }
-    
-    original_url.searchParams.set('state', state);
-    original_url.searchParams.set('code_challenge_method', 'S256');
-    original_url.searchParams.set('code_challenge', code_challenge);
-
-    if (preferred_account) {
-        original_url.searchParams.set('account', preferred_account);
+    } catch (error) {
+        console.error('Error generating OAuth URL:', error);
     }
 
-    if (prompt) {
-        original_url.searchParams.set('prompt', prompt);
-    }
-
-    const finalUrl = original_url.toString();
-    
-    // Exact debug info as requested
-    console.log('OAuth Client ID:', configured_client_id);
-    console.log('App ID:', configured_app_id);
-    console.log('OAuth URL:', finalUrl);
-    console.log({
-      appId: configured_app_id,
-      clientId: configured_client_id,
-      redirectUri: getAuthRedirectUri(),
-      authUrl: finalUrl
-    });
-
-    return finalUrl;
+    // Fallback to hardcoded URLs if brand config fails
+    return '';
 };
