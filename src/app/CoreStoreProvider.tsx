@@ -31,6 +31,7 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
 
     const appInitialization = useRef(false);
     const accountInitialization = useRef(false);
+    const balanceInitialized = useRef(false);
     const timeInterval = useRef<NodeJS.Timeout | null>(null);
     const msg_listener = useRef<{ unsubscribe: () => void } | null>(null);
     const { client, common } = useStore() ?? {};
@@ -53,6 +54,53 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
             oAuthLogout();
         }
     }, [isLoggedOutCookie, oAuthLogout, client?.is_logged_in]);
+
+    // Initialize balance for new-style wallet accounts (DOT/ROT)
+    useEffect(() => {
+        if (client && !balanceInitialized.current) {
+            try {
+                // Try to get accounts from localStorage.clientAccounts first
+                const clientAccountsStr = localStorage.getItem('clientAccounts');
+                if (clientAccountsStr) {
+                    const clientAccounts = JSON.parse(clientAccountsStr);
+                    const initAccounts: Record<string, { balance: number; currency: string; loginid: string }> = {};
+                    Object.entries(clientAccounts).forEach(([loginid, acc]: [string, any]) => {
+                        initAccounts[loginid] = {
+                            balance: parseFloat(acc.balance || '0'),
+                            currency: acc.currency || '',
+                            loginid,
+                        };
+                    });
+                    // Also check sessionStorage.deriv_accounts to get more details
+                    const derivAccountsStr = sessionStorage.getItem('deriv_accounts');
+                    if (derivAccountsStr) {
+                        const derivAccounts = JSON.parse(derivAccountsStr);
+                        derivAccounts.forEach((acc: any) => {
+                            const loginid = acc.loginid || acc.account_id;
+                            if (loginid && !initAccounts[loginid]) {
+                                initAccounts[loginid] = {
+                                    balance: parseFloat(acc.balance || '0'),
+                                    currency: acc.currency || '',
+                                    loginid,
+                                };
+                            }
+                        });
+                    }
+                    if (Object.keys(initAccounts).length > 0) {
+                        const activeLoginId = localStorage.getItem('active_loginid');
+                        client.setAllAccountsBalance({
+                            accounts: initAccounts,
+                            loginid: activeLoginId || Object.keys(initAccounts)[0],
+                        });
+                        console.log('[CoreStoreProvider] 💰 Initialized balances for wallet accounts:', initAccounts);
+                        balanceInitialized.current = true;
+                    }
+                }
+            } catch (e) {
+                console.error('[CoreStoreProvider] ❌ Failed to initialize wallet account balances:', e);
+            }
+        }
+    }, [client, isAuthorized]);
 
     const activeAccount = useMemo(
         () => accountList?.find(account => account.loginid === activeLoginid),
