@@ -28,7 +28,13 @@ export class DerivWSAccountsService {
 
     private static getDerivWSBaseURL(): string {
         const environment = isProduction() ? 'production' : 'staging';
-        return (brandConfig as any).platform?.derivws?.url?.[environment] || '';
+        const FALLBACK_URLS: Record<string, string> = {
+            production: 'https://api.derivws.com/trading/v1/options/',
+            staging: 'https://staging-api.derivws.com/trading/v1/options/',
+        };
+        const configuredUrl = (brandConfig as any).platform?.derivws?.url?.[environment];
+        const resolvedUrl = (configuredUrl && configuredUrl.trim()) ? configuredUrl : FALLBACK_URLS[environment];
+        return resolvedUrl;
     }
 
     static clearCache(): void {
@@ -69,20 +75,39 @@ export class DerivWSAccountsService {
                 const baseURL = this.getDerivWSBaseURL();
                 const OptionsDir = (brandConfig as any).platform?.derivws?.directories?.options || '';
                 const endpoint = `${baseURL}${OptionsDir}accounts`;
+                console.log('[DerivWS] fetchAccountsList endpoint:', endpoint);
+                console.log('Fetching URL:', endpoint);
 
                 const response = await fetch(endpoint, {
                     method: 'GET',
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
-                        'Deriv-App-ID': process.env.CLIENT_ID || '33cJNudwxWHenralOsZow',
+                        'Deriv-App-ID': (brandConfig as any).oauth?.client_id || process.env.CLIENT_ID || '33xD5lqNn16dXdKNver3',
                     },
                 });
+
+                const text = await response.text();
+                console.log('Raw API Response (Fetch Accounts List):', text);
+                console.log('RESPONSE TYPE:', typeof text);
+                console.log('STATUS:', response.status);
+                console.log('URL:', response.url);
+
+                if (text.trim().startsWith('<!DOCTYPE html>') || text.trim().startsWith('<html')) {
+                    console.error('Endpoint returned HTML instead of JSON. Broken route:', endpoint);
+                }
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch accounts: ${response.status} ${response.statusText}`);
                 }
 
-                const data: AccountsResponse = await response.json();
+                let data: AccountsResponse;
+                try {
+                    data = text ? JSON.parse(text) : {};
+                } catch (err) {
+                    console.error('JSON Parse Failed for fetchAccountsList');
+                    console.error(text);
+                    throw err;
+                }
                 const accounts = data?.data || [];
 
                 if (accounts.length === 0) console.warn('[DerivWS] No accounts found in response');
@@ -112,19 +137,38 @@ export class DerivWSAccountsService {
                 const baseURL = this.getDerivWSBaseURL();
                 const optionsDir = (brandConfig as any).platform?.derivws?.directories?.options || '';
                 const endpoint = `${baseURL}${optionsDir}accounts/${accountId}/otp`;
+                console.log('[DerivWS] fetchOTPWebSocketURL endpoint:', endpoint);
+                console.log('Fetching URL:', endpoint);
 
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
-                        'Deriv-App-ID': process.env.CLIENT_ID || '33cJNudwxWHenralOsZow',
+                        'Deriv-App-ID': (brandConfig as any).oauth?.client_id || process.env.CLIENT_ID || '33xD5lqNn16dXdKNver3',
                     },
                 });
 
+                const text = await response.text();
+                console.log('Raw API Response (Fetch OTP):', text);
+                console.log('RESPONSE TYPE:', typeof text);
+                console.log('STATUS:', response.status);
+                console.log('URL:', response.url);
+
+                if (text.trim().startsWith('<!DOCTYPE html>') || text.trim().startsWith('<html')) {
+                    console.error('Endpoint returned HTML instead of JSON. Broken route:', endpoint);
+                }
+
                 if (!response.ok) throw new Error(`Failed to fetch OTP: ${response.status} ${response.statusText}`);
 
-                const otpResponse: OTPResponse = await response.json();
-                const websocketURL = otpResponse.data.url;
+                let otpResponse: OTPResponse;
+                try {
+                    otpResponse = text ? JSON.parse(text) : {};
+                } catch (err) {
+                    console.error('JSON Parse Failed for fetchOTPWebSocketURL');
+                    console.error(text);
+                    throw err;
+                }
+                const websocketURL = otpResponse.data?.url;
                 if (!websocketURL) throw new Error('WebSocket URL not found in OTP response');
                 return websocketURL;
             } catch (error) {

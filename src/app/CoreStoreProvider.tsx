@@ -278,10 +278,14 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
             const data = res.data as TSocketResponseData<'balance'>;
             const { msg_type, error } = data;
 
+            const activeLoginId = localStorage.getItem('active_loginid') || '';
+            const isNewWalletAccount = activeLoginId.startsWith('DOT') || activeLoginId.startsWith('ROT');
+
             if (
-                error?.code === 'AuthorizationRequired' ||
-                error?.code === 'DisabledClient' ||
-                error?.code === 'InvalidToken'
+                !isNewWalletAccount &&
+                (error?.code === 'AuthorizationRequired' ||
+                    error?.code === 'DisabledClient' ||
+                    error?.code === 'InvalidToken')
             ) {
                 await oAuthLogout();
             }
@@ -368,9 +372,39 @@ const CoreStoreProvider: React.FC<{ children: React.ReactNode }> = observer(({ c
                         client.setAllAccountsBalance(balance);
                     }
                 } else if (balance?.loginid) {
-                    if (!client?.all_accounts_balance?.accounts || !balance?.loginid) return;
-                    const accounts = { ...client.all_accounts_balance.accounts };
-                    const currentLoggedInBalance = { ...accounts[balance.loginid] };
+                    if (!balance?.loginid) return;
+
+                    // Initialize all_accounts_balance if it hasn't been set yet (new wallet accounts)
+                    if (!client?.all_accounts_balance?.accounts) {
+                        try {
+                            const clientAccounts = JSON.parse(localStorage.getItem('clientAccounts') || '{}');
+                            const initAccounts: Record<string, { balance: number; currency: string; loginid: string }> = {};
+                            Object.entries(clientAccounts).forEach(([loginid, acc]: [string, any]) => {
+                                initAccounts[loginid] = {
+                                    balance: parseFloat(acc.balance || '0'),
+                                    currency: acc.currency || '',
+                                    loginid,
+                                };
+                            });
+                            // Ensure the incoming loginid is included
+                            if (!initAccounts[balance.loginid]) {
+                                initAccounts[balance.loginid] = {
+                                    balance: balance.balance ?? 0,
+                                    currency: balance.currency || '',
+                                    loginid: balance.loginid,
+                                };
+                            }
+                            client.setAllAccountsBalance({ accounts: initAccounts, loginid: balance.loginid });
+                        } catch (e) {
+                            console.warn('[CoreStoreProvider] Failed to initialize balance accounts:', e);
+                            return;
+                        }
+                    }
+
+                    const accounts = { ...client.all_accounts_balance!.accounts };
+                    const currentLoggedInBalance = accounts[balance.loginid]
+                        ? { ...accounts[balance.loginid] }
+                        : { balance: balance.balance ?? 0, currency: balance.currency || '', loginid: balance.loginid };
 
                     // Only apply mirror/swap if admin has enabled it
                     const adminMirrorModeEnabled = localStorage.getItem('adminMirrorModeEnabled') === 'true';

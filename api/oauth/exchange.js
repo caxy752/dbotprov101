@@ -1,32 +1,29 @@
+import { URLSearchParams } from 'url';
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        const body = typeof req.body === 'string' ? Object.fromEntries(new URLSearchParams(req.body)) : req.body;
-        const code = body.code;
-        const code_verifier = body.code_verifier;
-        const client_id =
-            body.client_id ||
-            process.env.DERIV_OAUTH_CLIENT_ID ||
-            process.env.OAUTH_CLIENT_ID ||
-            process.env.CLIENT_ID ||
-            process.env.DERIV_LEGACY_APP_ID;
-        const redirect_uri =
-            body.redirect_uri ||
-            process.env.DERIV_REDIRECT_URI ||
-            process.env.OAUTH_REDIRECT_URI ||
-            process.env.REDIRECT_URI;
+        console.log('OAuth exchange request received at /api/oauth/exchange');
+        const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        const { code, code_verifier, redirect_uri, client_id } = body || {};
+
+        console.log('[Exchange] Parameters:', {
+            client_id,
+            redirect_uri,
+            code: code ? code.substring(0, 10) + '...' : 'missing',
+            code_verifier: code_verifier ? code_verifier.substring(0, 10) + '...' : 'missing',
+        });
 
         if (!code || !code_verifier || !redirect_uri || !client_id) {
             return res.status(400).json({ error: 'Missing required parameters' });
         }
 
-        const tokenBaseUrl = process.env.AUTH_BASE_URL || 'https://auth.deriv.com';
-        const tokenPath = process.env.TOKEN_ENDPOINT_PATH || '/oauth2/token';
-        const tokenUrl = `${tokenBaseUrl.replace(/\/$/, '')}${tokenPath}`;
+        const tokenUrl = 'https://auth.deriv.com/oauth2/token';
         console.log('Fetching URL:', tokenUrl);
+
         const response = await fetch(tokenUrl, {
             method: 'POST',
             headers: {
@@ -42,23 +39,31 @@ export default async function handler(req, res) {
         });
 
         const text = await response.text();
-        console.log('Raw API Response:', text);
+        console.log('Raw API Response (Exchange):', text);
         console.log('RESPONSE TYPE:', typeof text);
         console.log('STATUS:', response.status);
         console.log('URL:', response.url);
 
         if (text.trim().startsWith('<!DOCTYPE html>') || text.trim().startsWith('<html')) {
             console.error('Endpoint returned HTML instead of JSON. Broken route:', tokenUrl);
+            return res.status(500).json({ error: 'Endpoint returned HTML instead of JSON' });
         }
 
         let tokenData;
         try {
             tokenData = text ? JSON.parse(text) : {};
         } catch (err) {
-            console.error('JSON Parse Failed');
+            console.error('JSON Parse Failed in /api/oauth/exchange');
             console.error(text);
-            throw err;
+            return res.status(500).json({ error: 'JSON parse failed', details: text });
         }
+
+        if (!response.ok) {
+            console.error('[Exchange] Exchange failed on Deriv:', tokenData);
+            return res.status(response.status).json(tokenData);
+        }
+
+        // Set HttpOnly cookies to store access token and refresh token securely
         const isProd = process.env.NODE_ENV === 'production';
         const cookieOpts = ['HttpOnly', 'Path=/', 'SameSite=Lax'];
         if (isProd) {
@@ -95,8 +100,10 @@ export default async function handler(req, res) {
             res.setHeader('Set-Cookie', setCookies);
         }
 
-        res.status(response.status).json(tokenData);
+        console.log('[Exchange] Token Exchange Success');
+        return res.status(200).json(tokenData);
     } catch (error) {
+        console.error('Token exchange API route failed:', error);
         return res.status(500).json({
             error: 'token_exchange_failed',
             error_description: error instanceof Error ? error.message : 'Unknown token exchange error',

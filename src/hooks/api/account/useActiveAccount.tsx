@@ -31,13 +31,22 @@ const useActiveAccount = ({ allBalanceData }: { allBalanceData: Balance | null }
 
     // For balance lookup, use CR6779123 if show_as_cr is set, otherwise use activeAccount loginid
     // Note: The balance for CR6779123 should already be calculated in setAllAccountsBalance
-    const balanceLookupLoginId = showAsCR || activeAccount?.loginid;
-    const currentBalanceData = allBalanceData?.accounts?.[balanceLookupLoginId ?? ''];
+    const activeAccountLoginId = activeAccount?.loginid || activeAccount?.account_id;
+    const balanceLookupLoginId = showAsCR || activeAccountLoginId;
+    const isValidLoginId = !!(
+        balanceLookupLoginId &&
+        balanceLookupLoginId !== 'undefined' &&
+        balanceLookupLoginId !== 'null' &&
+        balanceLookupLoginId.trim() !== ''
+    );
+    const currentBalanceData = (allBalanceData && isValidLoginId) ? allBalanceData.accounts?.[balanceLookupLoginId] : undefined;
 
-    console.log('[useActiveAccount] Balance lookup:', {
+    console.log('[useActiveAccount] Balance lookup diagnostics:', {
         showAsCR,
         balanceLookupLoginId,
-        activeAccountLoginId: activeAccount?.loginid,
+        activeAccountLoginId,
+        isValidLoginId,
+        hasAllBalanceData: !!allBalanceData,
         hasBalanceData: !!currentBalanceData,
         balance: currentBalanceData?.balance,
     });

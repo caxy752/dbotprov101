@@ -110,17 +110,48 @@ export class OAuthTokenExchangeService {
             const redirectUrl = getAuthRedirectUri();
 
             // Call the server-side token exchange endpoint
+            console.log('Fetching URL:', '/api/token');
             const response = await fetch('/api/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: redirectUrl, client_id: clientId }),
             });
 
-            const data: TokenExchangeResponse = await response.json();
+            const text = await response.text();
+            console.log('Raw API Response (Token Exchange):', text);
+            console.log('RESPONSE TYPE:', typeof text);
+            console.log('STATUS:', response.status);
+            console.log('URL:', response.url);
+
+            if (text.trim().startsWith('<!DOCTYPE html>') || text.trim().startsWith('<html')) {
+                console.error('Endpoint returned HTML instead of JSON. Broken route: /api/token');
+            }
+
+            let data: TokenExchangeResponse;
+            try {
+                data = text ? JSON.parse(text) : {};
+            } catch (err) {
+                console.error('JSON Parse Failed for token exchange');
+                console.error(text);
+                throw err;
+            }
+
+            console.log('TOKEN RESPONSE', data);
 
             if (data.error) {
                 console.error(`OAuth Token exchange error: ${data.error}`, data.error_description);
                 return { error: data.error, error_description: data.error_description };
+            }
+
+            // Validate token response fields
+            if (!data.access_token || !data.refresh_token || !data.token_type) {
+                const missing = [];
+                if (!data.access_token) missing.push('access_token');
+                if (!data.refresh_token) missing.push('refresh_token');
+                if (!data.token_type) missing.push('token_type');
+                const errMsg = `OAuth Token exchange response is missing required fields: ${missing.join(', ')}`;
+                console.error(errMsg);
+                throw new Error(errMsg);
             }
 
             if (data.access_token) {
@@ -191,9 +222,9 @@ export class OAuthTokenExchangeService {
                         return { error: 'no_accounts', error_description: 'No accounts available after authentication' };
                     }
                 } catch (error) {
-                    console.error('OAuth: Error fetching accounts after token exchange', error);
-                    this.clearAuthInfo();
-                    return { error: 'account_fetch_failed', error_description: error instanceof Error ? error.message : String(error) };
+                    console.warn('[OAuth] Warning: accounts fetch failed after token exchange, proceeding without pre-fetched accounts:', error);
+                    // Don't abort — the token is valid. api_base.init() will fetch accounts after redirect.
+                    // Clearing authInfo here would force a login loop.
                 }
             }
 
@@ -210,6 +241,7 @@ export class OAuthTokenExchangeService {
 
             const requestBody = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken });
 
+            console.log('Fetching URL:', tokenEndpoint);
             const response = await fetch(tokenEndpoint, {
                 method: 'POST',
                 credentials: 'include',
@@ -217,7 +249,24 @@ export class OAuthTokenExchangeService {
                 body: requestBody.toString(),
             });
 
-            const data: TokenExchangeResponse = await response.json();
+            const text = await response.text();
+            console.log('Raw API Response (Token Refresh):', text);
+            console.log('RESPONSE TYPE:', typeof text);
+            console.log('STATUS:', response.status);
+            console.log('URL:', response.url);
+
+            if (text.trim().startsWith('<!DOCTYPE html>') || text.trim().startsWith('<html')) {
+                console.error('Endpoint returned HTML instead of JSON. Broken route:', tokenEndpoint);
+            }
+
+            let data: TokenExchangeResponse;
+            try {
+                data = text ? JSON.parse(text) : {};
+            } catch (err) {
+                console.error('JSON Parse Failed for token refresh');
+                console.error(text);
+                throw err;
+            }
 
             if (data.error) {
                 console.error(`OAuth Token refresh error: ${data.error}`, data.error_description);

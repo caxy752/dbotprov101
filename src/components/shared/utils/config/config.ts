@@ -34,6 +34,8 @@ export const domain_app_ids = {
     'www.qtropwinninghub.vercel.app': 107823,
     'qtropwinnershub.site': 107823,
     'www.qtropwinnershub.site': 107823,
+    'dbotprov.vercel.app': 113830,
+    'www.dbotprov.vercel.app': 113830,
 };
 
 export const getCurrentProductionDomain = () => {
@@ -263,10 +265,10 @@ export const getAuthRedirectUri = () => {
     const isProd = isProduction();
 
     if (isProd) {
-        return `https://${brandConfig.brand_domain}/`;
+        return `https://${brandConfig.brand_domain}/auth/callback`;
     }
 
-    return `${protocol}//${host}/`;
+    return `${protocol}//${host}/auth/callback`;
 };
 
 export const isProduction = () => {

@@ -322,6 +322,10 @@ export const AuthWrapper = () => {
                 const hasAccounts = Boolean(localStorage.getItem('accountsList') || localStorage.getItem('authToken'));
                 if (!hasAccounts) {
                     await restoreLoginFromServerSession();
+                } else {
+                    // Returning user: accounts already in localStorage, just init the API
+                    // This ensures new wallet accounts (DOT/ROT) get the WebSocket connection
+                    await api_base.init(true);
                 }
             }
 

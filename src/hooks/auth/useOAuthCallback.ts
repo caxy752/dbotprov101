@@ -125,21 +125,25 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
 
         if (!state) {
             console.error('[OAuth] Missing state parameter in callback');
-            clearAuthData();
+            console.warn('[OAuth] URL had code but no state — this usually means the redirect URI went through a server-side handler that stripped the state parameter.');
+            // Don't redirect — that causes an infinite loop. Just skip the OAuth processing.
             setResult({
                 isProcessing: false,
                 isValid: false,
                 params: { code, state, error, error_description },
                 legacyAccounts: [],
-                error: 'Missing state parameter - potential security threat',
+                error: 'Missing state parameter',
             });
-            window.location.replace(window.location.origin);
+            cleanupURL();
             return;
         }
 
         if (!validateCSRFToken(state)) {
             console.error('[OAuth] CSRF token validation failed');
-            clearAuthData();
+            console.warn('[OAuth] State from URL:', state);
+            console.warn('[OAuth] State in sessionStorage:', sessionStorage.getItem('oauth_csrf_token'));
+            console.warn('[OAuth] This can happen if sessionStorage was cleared, the tab was navigated away, or the redirect went through a different origin.');
+            // Don't clear auth data — this might be a stale callback, not a real attack
             setResult({
                 isProcessing: false,
                 isValid: false,
@@ -147,6 +151,7 @@ export const useOAuthCallback = (): OAuthCallbackResult => {
                 legacyAccounts: [],
                 error: 'CSRF token validation failed',
             });
+            cleanupURL();
             return;
         }
 

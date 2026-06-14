@@ -114,8 +114,8 @@ export default class TransactionsStore {
         const currentLoginId = this.core?.client?.loginid;
         console.log('[Transactions] 🔍 transactions getter called, currentLoginId:', currentLoginId);
 
-        if (!currentLoginId) {
-            console.log('[Transactions] ❌ No currentLoginId, returning empty array');
+        if (!currentLoginId || currentLoginId === 'undefined' || currentLoginId === 'null' || currentLoginId.trim() === '') {
+            console.log('[Transactions] ❌ Invalid or missing currentLoginId, returning empty array');
             return [];
         }
 
@@ -288,6 +288,10 @@ export default class TransactionsStore {
         const is_completed = isEnded(data as ProposalOpenContract);
         const { run_id } = this.root_store.run_panel;
         let current_account = this.core?.client?.loginid as string;
+        if (!current_account || current_account === 'undefined' || current_account === 'null' || current_account.trim() === '') {
+            console.log('[Transactions] ❌ Invalid or missing current_account, aborting pushTransaction');
+            return;
+        }
         console.log('[Transactions] 💾 Original current_account:', current_account);
 
         // Check if contract data has accountID (from broadcastContract)
@@ -609,6 +613,9 @@ export default class TransactionsStore {
 
     clear() {
         const currentLoginId = this.core?.client?.loginid as string;
+        if (!currentLoginId || currentLoginId === 'undefined' || currentLoginId === 'null' || currentLoginId.trim() === '') {
+            return;
+        }
 
         // Clear transactions for current account
         if (this.elements && this.elements[currentLoginId]?.length > 0) {

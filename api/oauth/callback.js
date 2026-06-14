@@ -66,13 +66,32 @@ export default async function handler(req, res) {
             code_verifier,
         });
 
-        const tokenResp = await fetch('https://auth.deriv.com/oauth2/token', {
+        const tokenUrl = 'https://auth.deriv.com/oauth2/token';
+        console.log('Fetching URL:', tokenUrl);
+        const tokenResp = await fetch(tokenUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params.toString(),
         });
 
-        const tokenData = await tokenResp.json();
+        const tokenText = await tokenResp.text();
+        console.log('Raw API Response (Token Exchange):', tokenText);
+        console.log('RESPONSE TYPE:', typeof tokenText);
+        console.log('STATUS:', tokenResp.status);
+        console.log('URL:', tokenResp.url);
+
+        if (tokenText.trim().startsWith('<!DOCTYPE html>') || tokenText.trim().startsWith('<html')) {
+            console.error('Endpoint returned HTML instead of JSON. Broken route:', tokenUrl);
+        }
+
+        let tokenData;
+        try {
+            tokenData = tokenText ? JSON.parse(tokenText) : {};
+        } catch (err) {
+            console.error('JSON Parse Failed for token exchange');
+            console.error(tokenText);
+            throw err;
+        }
 
         if (!tokenResp.ok) {
             return res.status(500).json({ error: 'token_exchange_failed', details: tokenData });
@@ -134,15 +153,35 @@ export default async function handler(req, res) {
             };
 
             const preferredAccount = cookies.oauth_preferred_account;
+            const accountsUrl = 'https://api.derivws.com/trading/v1/options/accounts';
 
             // Try to fetch new wallet accounts (DOT, ROT) using trading API
             try {
-                const accountResponse = await fetch('https://api.derivws.com/trading/v1/options/accounts', {
+                console.log('Fetching URL:', accountsUrl);
+                const accountResponse = await fetch(accountsUrl, {
                     headers: accountHeaders,
                 }).catch(() => null);
 
                 if (accountResponse && accountResponse.ok) {
-                    const accountData = await accountResponse.json();
+                    const accountText = await accountResponse.text();
+                    console.log('Raw API Response (Accounts):', accountText);
+                    console.log('RESPONSE TYPE:', typeof accountText);
+                    console.log('STATUS:', accountResponse.status);
+                    console.log('URL:', accountResponse.url);
+
+                    if (accountText.trim().startsWith('<!DOCTYPE html>') || accountText.trim().startsWith('<html')) {
+                        console.error('Endpoint returned HTML instead of JSON. Broken route:', accountsUrl);
+                    }
+
+                    let accountData;
+                    try {
+                        accountData = accountText ? JSON.parse(accountText) : {};
+                    } catch (err) {
+                        console.error('JSON Parse Failed for account list');
+                        console.error(accountText);
+                        throw err;
+                    }
+
                     const rawAccounts = accountData.accounts || accountData.trading_accounts || [];
                     accounts = rawAccounts
                         .map(account => ({
@@ -155,6 +194,7 @@ export default async function handler(req, res) {
                         .filter(account => account.loginid);
                 }
             } catch (err) {
+                console.error('Account fetching failed in callback:', err);
                 // Continue even if account fetch fails - frontend will discover via api_base.init()
             }
 

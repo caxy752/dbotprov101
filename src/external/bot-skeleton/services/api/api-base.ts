@@ -22,6 +22,7 @@ import {
 } from './appId';
 import { getAppId } from '@/components/shared';
 import chart_api from './chart-api';
+import { DerivWSAccountsService } from '@/services/derivws-accounts.service';
 
 type CurrentSubscription = {
     id: string;
@@ -96,6 +97,24 @@ class APIBase {
             this.unsubscribeAllSubscriptions();
         }
 
+        const activeLoginId = localStorage.getItem('active_loginid') || '';
+        const hasAuthInfo = !!sessionStorage.getItem('auth_info');
+        const isNewAccount = activeLoginId.startsWith('DOT') || activeLoginId.startsWith('ROT') || hasAuthInfo;
+        const token = V2GetActiveToken();
+
+        let isNewAccountFlow = false;
+        let authenticatedUrl = null;
+
+        if (isNewAccount && token) {
+            try {
+                authenticatedUrl = await DerivWSAccountsService.getAuthenticatedWebSocketURL(token);
+                isNewAccountFlow = true;
+                console.log(`[APIBase] Obtained authenticated URL: ${authenticatedUrl ? authenticatedUrl.substring(0, 50) + '...' : 'null'}`);
+            } catch (e) {
+                console.error('[APIBase] Failed to get authenticated WebSocket URL:', e);
+            }
+        }
+
         if (!this.api || this.api?.connection.readyState !== 1 || force_create_connection) {
             if (this.api?.connection) {
                 ApiHelpers.disposeInstance();
@@ -104,7 +123,7 @@ class APIBase {
                 this.api.connection.removeEventListener('open', this.onsocketopen.bind(this));
                 this.api.connection.removeEventListener('close', this.onsocketclose.bind(this));
             }
-            this.api = generateDerivApiInstance();
+            this.api = generateDerivApiInstance(null, authenticatedUrl);
             this.api?.connection.addEventListener('open', this.onsocketopen.bind(this));
             this.api?.connection.addEventListener('close', this.onsocketclose.bind(this));
         }
@@ -325,6 +344,52 @@ class APIBase {
         this.account_id = V2GetActiveClientId() ?? '';
         setIsAuthorizing(true);
 
+        const activeLoginId = localStorage.getItem('active_loginid') || '';
+        const hasAuthInfo = !!sessionStorage.getItem('auth_info');
+        const isNewAccount = activeLoginId.startsWith('DOT') || activeLoginId.startsWith('ROT') || hasAuthInfo;
+
+        if (isNewAccount) {
+            console.log(`[APIBase] Skipping authorize call for new account: ${activeLoginId}`);
+            try {
+                const clientAccounts = JSON.parse(localStorage.getItem('clientAccounts') || '{}');
+                const currentAccount = clientAccounts[activeLoginId] || {};
+                const storedAccounts = DerivWSAccountsService.getStoredAccounts() || [];
+
+                const mockAuthorize = {
+                    loginid: activeLoginId,
+                    email: localStorage.getItem('email') || '',
+                    currency: currentAccount.currency || '',
+                    balance: parseFloat(currentAccount.balance || '0'),
+                    account_list: storedAccounts.map(acc => ({
+                        loginid: acc.account_id || acc.loginid,
+                        currency: acc.currency,
+                        account_type: acc.account_type,
+                        is_virtual: acc.account_type === 'demo',
+                    })),
+                };
+
+                this.account_info = mockAuthorize;
+                setAccountList(mockAuthorize.account_list);
+                setAuthData(mockAuthorize);
+                setIsAuthorized(true);
+                this.is_authorized = true;
+                localStorage.setItem('client_account_details', JSON.stringify(mockAuthorize.account_list));
+                localStorage.setItem('client.country', mockAuthorize.currency);
+
+                if (this.has_active_symbols) {
+                    this.toggleRunButton(false);
+                } else {
+                    this.active_symbols_promise = this.getActiveSymbols();
+                }
+                this.subscribe();
+                this.getSelfExclusion();
+                setIsAuthorizing(false);
+                return;
+            } catch (e) {
+                console.error('[APIBase] Failed to mock authorize for new account:', e);
+            }
+        }
+
         try {
             const { authorize, error } = await this.api.authorize(this.token);
             if (error) {
@@ -374,13 +439,16 @@ class APIBase {
     }
 
     async subscribe() {
+        const activeLoginId = localStorage.getItem('active_loginid') || '';
+        const isNewAccount = activeLoginId.startsWith('DOT') || activeLoginId.startsWith('ROT');
+
         const subscribeToStream = (streamName: string) => {
             return doUntilDone(
                 () => {
                     const subscription = this.api?.send({
                         [streamName]: 1,
                         subscribe: 1,
-                        ...(streamName === 'balance' ? { account: 'all' } : {}),
+                        ...(streamName === 'balance' && !isNewAccount ? { account: 'all' } : {}),
                     });
                     if (subscription) {
                         this.current_auth_subscriptions.push(subscription);

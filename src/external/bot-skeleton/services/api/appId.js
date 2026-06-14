@@ -13,7 +13,7 @@ const APP_ID_SWITCHING_DISABLED = true;
  * Generate a Deriv API instance with a specific app_id
  * @param {number} specificAppId - Optional specific app_id to use. If not provided, uses getAppId()
  */
-export const generateDerivApiInstance = (specificAppId = null) => {
+export const generateDerivApiInstance = (specificAppId = null, authenticatedUrl = null) => {
     const cleanedServer = getSocketURL().replace(/[^a-zA-Z0-9.]/g, '');
     const requestedAppId = specificAppId !== null ? specificAppId : getAppId();
     const appId =
@@ -35,7 +35,7 @@ export const generateDerivApiInstance = (specificAppId = null) => {
         console.log(`🔗 [WEBSOCKET] Creating connection with specific App ID ${appId}`);
     }
 
-    const socket_url = `wss://${cleanedServer}/websockets/v3?app_id=${cleanedAppId}&l=${getInitialLanguage()}&brand=${website_name.toLowerCase()}`;
+    const socket_url = authenticatedUrl || `wss://${cleanedServer}/websockets/v3?app_id=${cleanedAppId}&l=${getInitialLanguage()}&brand=${website_name.toLowerCase()}`;
 
     const deriv_socket = new WebSocket(socket_url);
     const deriv_api = new DerivAPIBasic({
