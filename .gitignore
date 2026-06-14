@@ -38,3 +38,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Temporary files
+git_status_output.txt
+git_push_output.txt
+git_diff_output.txt
+push.bat
