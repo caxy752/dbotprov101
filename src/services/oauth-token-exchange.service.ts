@@ -143,11 +143,10 @@ export class OAuthTokenExchangeService {
                 return { error: data.error, error_description: data.error_description };
             }
 
-            // Validate token response fields
-            if (!data.access_token || !data.refresh_token || !data.token_type) {
+            // Validate token response fields (refresh_token is optional for Deriv)
+            if (!data.access_token || !data.token_type) {
                 const missing = [];
                 if (!data.access_token) missing.push('access_token');
-                if (!data.refresh_token) missing.push('refresh_token');
                 if (!data.token_type) missing.push('token_type');
                 const errMsg = `OAuth Token exchange response is missing required fields: ${missing.join(', ')}`;
                 console.error(errMsg);
