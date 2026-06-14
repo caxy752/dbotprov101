@@ -1,6 +1,7 @@
 import { initSurvicate } from '../public-path';
 import { lazy, Suspense } from 'react';
 import React from 'react';
+import Cookies from 'js-cookie';
 import { createBrowserRouter, createRoutesFromElements, Navigate, Route, RouterProvider } from 'react-router-dom';
 import AppLoaderWrapper from '@/components/app-loader/app-loader-wrapper';
 import { getLoaderDuration, isLoaderEnabled } from '@/components/app-loader/loader-config';
@@ -24,6 +25,8 @@ import './app-root.scss';
 
 const Layout = lazy(() => import('../components/layout'));
 const AppRoot = lazy(() => import('./app-root'));
+const CallbackPage = lazy(() => import('@/pages/callback'));
+const AuthCallbackPage = lazy(() => import('@/pages/auth/callback'));
 
 const { TRANSLATIONS_CDN_URL, R2_PROJECT_NAME, CROWDIN_BRANCH_NAME } = process.env;
 const i18nInstance = initializeI18n({
@@ -60,6 +63,16 @@ const router = createBrowserRouter(
             <Route index element={<AppRoot />} />
             <Route path='dashboard' element={<AppRoot />} />
             <Route path='endpoint' element={<Endpoint />} />
+            <Route path='callback' element={
+                <Suspense fallback={<ChunkLoader message={localize('Authenticating...')} />}>
+                    <CallbackPage />
+                </Suspense>
+            } />
+            <Route path='auth/callback' element={
+                <Suspense fallback={<ChunkLoader message={localize('Authenticating...')} />}>
+                    <AuthCallbackPage />
+                </Suspense>
+            } />
             {/* Catch-all route - redirect to home for any invalid routes */}
             <Route path='*' element={<Navigate to='/' replace />} />
         </Route>
@@ -162,24 +175,14 @@ function App() {
     }, [isProcessing, legacyAccounts, cleanupURL]);
 
     React.useEffect(() => {
-        if (!isProcessing && isValid && params.code) {
-            OAuthTokenExchangeService.exchangeCodeForToken(params.code)
-                .then(response => {
-                    if (response.access_token) {
-                        cleanupURL();
-                    } else if (response.error) {
-                        console.error('❌ Token exchange failed:', response.error, response.error_description);
-                        cleanupURL();
-                    }
-                })
-                .catch(err => {
-                    console.error('❌ Token exchange request failed:', err);
-                    cleanupURL();
-                });
-        } else if (!isProcessing && error) {
-            console.error('OAuth callback error:', error);
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        if (code && state && window.location.pathname !== '/auth/callback') {
+            console.log('[App] OAuth params detected outside callback route, redirecting to /auth/callback...');
+            window.location.replace(`${window.location.origin}/auth/callback?${urlParams.toString()}`);
         }
-    }, [isProcessing, isValid, params.code, error, cleanupURL]);
+    }, []);
 
     React.useEffect(() => {
         // Force update app ID in localStorage to ensure we use the current config value
