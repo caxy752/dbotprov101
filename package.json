@@ -184,8 +184,19 @@
         "sass-embedded-win32-x64": "1.85.1"
     },
     "overrides": {
+        "glob": "10.5.0",
         "cross-spawn": "^7.0.6",
         "braces": "^3.0.3",
-        "brace-expansion@2.0.1": "2.0.2"
+        "@semantic-release/npm": "^13.1.2",
+        "undici": "^6.24.1",
+        "minimatch": "^10.0.3",
+        "brace-expansion": "^5.0.6",
+        "picomatch": "^4.0.4",
+        "fast-uri": "3.1.2",
+        "qs": "6.15.2",
+        "ws": "8.20.1",
+        "uuid": "^11.1.1",
+        "shell-quote": "^1.8.4",
+        "npm": "^11.16.0"
     }
 }
